@@ -12,7 +12,9 @@ import 'admin/licences_screen.dart';
 import 'admin/users_roles_screen.dart';
 import 'auth/sign_in_screen.dart';
 import 'auth/sign_up_screen.dart';
+import 'differentials/ddx_review_screen.dart';
 import 'edit_profile_screen.dart';
+import 'interactions/interaction_review_screen.dart';
 import 'offline_library_screen.dart';
 import 'studio/studio_screen.dart';
 
@@ -243,6 +245,22 @@ class _SignedInPanel extends StatelessWidget {
               label: const Text('Licence register'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const LicencesScreen()),
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.compare_arrows),
+              label: const Text('Interaction review'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const InteractionReviewScreen()),
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.manage_search),
+              label: const Text('Differential review'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const DdxReviewScreen()),
               ),
             ),
           ],

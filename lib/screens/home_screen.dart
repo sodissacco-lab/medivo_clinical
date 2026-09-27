@@ -9,8 +9,10 @@ import '../widgets/medivo_mark.dart';
 import 'algorithms/algorithms_screen.dart';
 import 'calculators/calculators_screen.dart';
 import 'category_placeholder_screen.dart';
+import 'differentials/ddx_screen.dart';
 import 'emergency/emergency_hub_screen.dart';
 import 'guidelines/guidelines_screen.dart';
+import 'interactions/interaction_checker_screen.dart';
 import 'offline_library_screen.dart';
 import 'reference/reference_list_screen.dart';
 
@@ -193,6 +195,8 @@ class _CategoryCard extends StatelessWidget {
                 'emergency' => const EmergencyHubScreen(),
                 'algorithm' => const AlgorithmsScreen(),
                 'guideline' => const GuidelinesScreen(),
+                'interaction' => const InteractionCheckerScreen(),
+                'ddx' => const DdxScreen(),
                 null => CategoryPlaceholderScreen(category: category),
                 _ => ReferenceListScreen(type: type),
               },

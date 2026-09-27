@@ -15,8 +15,8 @@ Built with Flutter (Android, iOS, Web) and Supabase, following the UGA-MED Clini
 - [x] Phase 7 · Clinical calculators
 - [x] Phase 8 · Emergency protocols and clinical algorithms
 - [x] Phase 9 · Guideline library
-- [ ] Phase 10 · Drug interactions
-- [ ] Phase 11 · Differential diagnosis
+- [x] Phase 10 · Drug interactions
+- [x] Phase 11 · Differential diagnosis
 - [ ] Phase 12 · Saved, Recent, notifications
 - [ ] Phase 13 · Subscriptions and payments
 - [ ] Phase 14 · AI clinical assistant

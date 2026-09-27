@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../differentials/ddx_engine.dart';
 import '../services/account_controller.dart';
 import 'offline_database.dart';
 
@@ -118,6 +119,14 @@ class OfflineItem {
 /// Keeps published content on the phone and in step with Medivo cloud.
 /// Only content that has passed clinical review and been published is
 /// ever downloaded.
+/// Columns of ddx_conditions the app reads.
+const String ddxConditionColumns =
+    'key, name, category, commonness, must_not_miss, links, required, status, verified_against';
+
+/// Columns of drug_interactions the app reads.
+const String interactionColumns = 'id, code, term_a, term_b, severity, summary, mechanism, consequence, '
+    'action, monitoring, verified_against, suggested_sources, status, published_at, approved_by_name';
+
 class OfflineService extends ChangeNotifier {
   OfflineService._();
 
@@ -193,6 +202,8 @@ class OfflineService extends ChangeNotifier {
       final client = Supabase.instance.client;
       await _refreshPacks(db, client);
       await _refreshSynonyms(db, client);
+      await _refreshInteractions(db, client);
+      await _refreshDifferentials(db, client);
       final chosen = packs.where((p) => p.selected).toList();
 
       // 1. What is published now, and which of it the chosen packs cover.
@@ -331,6 +342,32 @@ class OfflineService extends ChangeNotifier {
     return decoded.map((k, v) => MapEntry(k, (v as List).cast<String>()));
   }
 
+  /// The published differential diagnosis knowledge base, as JSON.
+  Future<String?> ddxIndexJson() async {
+    final db = _db;
+    if (db == null) return null;
+    return _getMeta(db, 'ddx_index');
+  }
+
+  Future<void> saveDdxIndexJson(String json) async {
+    final db = _db;
+    if (db == null) return;
+    await _setMeta(db, 'ddx_index', json);
+  }
+
+  /// The published drug interaction list saved at the last update, as JSON.
+  Future<String?> interactionIndexJson() async {
+    final db = _db;
+    if (db == null) return null;
+    return _getMeta(db, 'interaction_index');
+  }
+
+  Future<void> saveInteractionIndexJson(String json) async {
+    final db = _db;
+    if (db == null) return;
+    await _setMeta(db, 'interaction_index', json);
+  }
+
   Future<List<String>> recentSearches() async {
     final db = _db;
     if (db == null) return const [];
@@ -345,6 +382,37 @@ class OfflineService extends ChangeNotifier {
   }
 
   // ---- Internals ---------------------------------------------------------
+
+  /// The differential diagnosis knowledge base is small; keep it all offline.
+  Future<void> _refreshDifferentials(Database db, SupabaseClient client) async {
+    try {
+      final findings = await client.from('ddx_findings').select('key, name, group_name, synonyms, sort_order');
+      final conditions = await client
+          .from('ddx_conditions')
+          .select(ddxConditionColumns)
+          .eq('status', 'published');
+      final links = await client.from('ddx_condition_findings').select('condition_key, finding_key, weight');
+      final index = DdxIndex.fromRows(findings: findings, conditions: conditions, links: links);
+      await _setMeta(db, 'ddx_index', jsonEncode(index.toJson()));
+    } catch (e) {
+      debugPrint('Differentials not updated: $e');
+    }
+  }
+
+  /// Drug interactions are small, so every phone keeps the whole published
+  /// list for offline checking (blueprint §15, §22).
+  Future<void> _refreshInteractions(Database db, SupabaseClient client) async {
+    try {
+      final terms = await client.from('interaction_terms').select('key, name, kind, synonyms, classes');
+      final rows = await client
+          .from('drug_interactions')
+          .select(interactionColumns)
+          .eq('status', 'published');
+      await _setMeta(db, 'interaction_index', jsonEncode({'terms': terms, 'interactions': rows}));
+    } catch (e) {
+      debugPrint('Interactions not updated: $e');
+    }
+  }
 
   Future<void> _refreshSynonyms(Database db, SupabaseClient client) async {
     try {

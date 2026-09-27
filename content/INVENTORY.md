@@ -269,3 +269,11 @@ Fever, cough, chest pain, abdominal pain, headache, diarrhoea, anaemia, hyperten
 ## Guideline library (§18), Batch 18 · [x] drafted (16 entries in content/guidelines/, loaded by supabase/phase9_guidelines_content_part1–3.sql)
 
 Uganda Clinical Guidelines; national treatment guidelines; HIV; TB; malaria; maternal health; child health; NCDs. International: WHO, CDC, NICE, IDSA. Entries are summaries and links only until licences are confirmed.
+
+## Drug interactions (§15), Batch 17 · [x] drafted (94 entries, 92 drugs, 16 classes; content/interactions/starter-set.md, loaded by supabase/phase10_interactions_data_part1–3.sql)
+
+Each entry must be verified against a reliable reference (e.g. BNF, Stockley's, Liverpool HIV Interactions) before approval.
+
+## Differential diagnosis knowledge base (§11) · [x] drafted
+
+69 conditions (34 must-not-miss), 116 findings, 441 weighted links. content/differentials/knowledge-base.md; loaded by supabase/phase11_differentials_data_part1–2.sql. Each condition profile is reviewed and published separately.

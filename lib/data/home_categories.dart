@@ -67,6 +67,7 @@ const List<HomeCategory> homeCategories = [
     icon: Icons.compare_arrows,
     phase: 10,
     summary: 'Check two or more drugs for interactions, with mechanism, consequence and clinical action.',
+    contentType: 'interaction',
   ),
   HomeCategory(
     title: 'Laboratory',
@@ -88,5 +89,12 @@ const List<HomeCategory> homeCategories = [
     phase: 8,
     summary: 'Symptom pathways: fever, cough, chest pain, headache and more, red flags first.',
     contentType: 'algorithm',
+  ),
+  HomeCategory(
+    title: 'Differentials',
+    icon: Icons.manage_search,
+    phase: 11,
+    summary: 'Enter symptoms and signs; see conditions to consider, dangerous ones first, each linked to its page.',
+    contentType: 'ddx',
   ),
 ];
