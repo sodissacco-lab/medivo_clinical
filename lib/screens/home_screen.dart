@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../data/home_categories.dart';
+import '../offline/offline_service.dart';
+import '../services/account_controller.dart';
 import '../theme/medivo_palette.dart';
 import '../theme/medivo_text.dart';
 import '../widgets/medivo_mark.dart';
+import 'algorithms/algorithms_screen.dart';
+import 'calculators/calculators_screen.dart';
 import 'category_placeholder_screen.dart';
+import 'emergency/emergency_hub_screen.dart';
+import 'guidelines/guidelines_screen.dart';
+import 'offline_library_screen.dart';
+import 'reference/reference_list_screen.dart';
 
 /// Home dashboard (blueprint §5–7): header, universal search, category cards.
 class HomeScreen extends StatelessWidget {
@@ -34,7 +42,18 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Welcome', style: MedivoText.heading.copyWith(color: p.ink)),
+                    ListenableBuilder(
+                      listenable: AccountController.instance,
+                      builder: (context, _) {
+                        final name = AccountController.instance.profile?.firstName ?? '';
+                        return Text(
+                          name.isEmpty ? 'Welcome' : 'Welcome, $name',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: MedivoText.heading.copyWith(color: p.ink),
+                        );
+                      },
+                    ),
                     Text('Clinical Companion',
                         style: MedivoText.bodySm.copyWith(color: p.muted)),
                   ],
@@ -49,6 +68,10 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
+          // The single emergency button (blueprint §16)
+          const _EmergencyButton(),
+          const SizedBox(height: 12),
+
           // Universal search (opens the Search tab)
           _SearchBox(onTap: onOpenSearch),
           const SizedBox(height: 24),
@@ -56,7 +79,7 @@ class HomeScreen extends StatelessWidget {
           Text('BROWSE', style: MedivoText.label.copyWith(color: p.muted)),
           const SizedBox(height: 8),
 
-                  GridView.extent(
+          GridView.extent(
             maxCrossAxisExtent: 220,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -69,18 +92,35 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Offline status (the offline library arrives in Phase 4)
-          Row(
-            children: [
-              Icon(Icons.cloud_off_outlined, size: 16, color: p.muted),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('Offline library not downloaded yet',
-                    style: MedivoText.bodySm.copyWith(color: p.muted)),
-              ),
-            ],
-          ),
+          // Offline status (blueprint §22)
+          const _OfflineStatusLine(),
         ],
+      ),
+    );
+  }
+}
+
+class _EmergencyButton extends StatelessWidget {
+  const _EmergencyButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final onAlert = Theme.of(context).colorScheme.onError;
+    return SizedBox(
+      height: 56,
+      child: FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: p.alert,
+          foregroundColor: onAlert,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const EmergencyHubScreen()),
+        ),
+        icon: const Icon(Icons.emergency, size: 26),
+        label: Text('EMERGENCY',
+            style: MedivoText.heading.copyWith(color: onAlert, letterSpacing: 1.5)),
       ),
     );
   }
@@ -144,11 +184,21 @@ class _CategoryCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => CategoryPlaceholderScreen(category: category),
-          ),
-        ),
+        onTap: () {
+          final type = category.contentType;
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => switch (type) {
+                'calculator' => const CalculatorsScreen(),
+                'emergency' => const EmergencyHubScreen(),
+                'algorithm' => const AlgorithmsScreen(),
+                'guideline' => const GuidelinesScreen(),
+                null => CategoryPlaceholderScreen(category: category),
+                _ => ReferenceListScreen(type: type),
+              },
+            ),
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -169,6 +219,58 @@ class _CategoryCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+
+class _OfflineStatusLine extends StatelessWidget {
+  const _OfflineStatusLine();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final offline = OfflineService.instance;
+    if (!offline.supported) return const SizedBox.shrink();
+
+    return ListenableBuilder(
+      listenable: offline,
+      builder: (context, _) {
+        final last = offline.lastUpdated;
+        final String text;
+        final IconData icon;
+        if (offline.syncing) {
+          text = offline.total == 0
+              ? 'Checking for content updates…'
+              : 'Updating offline library: ${offline.done} of ${offline.total}';
+          icon = Icons.cloud_sync_outlined;
+        } else if (last == null) {
+          text = 'Offline library not downloaded yet';
+          icon = Icons.cloud_off_outlined;
+        } else {
+          text = 'Offline content last updated: ${formatLongDate(last)}';
+          icon = Icons.offline_pin_outlined;
+        }
+        return InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const OfflineLibraryScreen()),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: p.muted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(text, style: MedivoText.bodySm.copyWith(color: p.muted)),
+                ),
+                Icon(Icons.chevron_right, size: 18, color: p.muted),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

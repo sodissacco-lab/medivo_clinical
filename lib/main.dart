@@ -3,6 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_shell.dart';
 import 'config.dart';
+import 'offline/offline_service.dart';
+import 'services/account_controller.dart';
+import 'services/calculator_catalog.dart';
 import 'theme/medivo_theme.dart';
 
 Future<void> main() async {
@@ -19,6 +22,14 @@ Future<void> main() async {
   } catch (e) {
     debugPrint('Supabase could not start: $e');
   }
+
+  // Listens for sign-in and sign-out and loads the profile (Phase 2).
+  AccountController.instance.start();
+
+  // Opens the on-phone library, then updates it in the background (Phase 4).
+  await OfflineService.instance.init();
+  OfflineService.instance.syncIfDue();
+  CalculatorCatalog.instance.refresh();
 
   runApp(const MedivoApp());
 }

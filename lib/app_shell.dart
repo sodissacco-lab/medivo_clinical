@@ -5,6 +5,7 @@ import 'screens/profile_screen.dart';
 import 'screens/recent_screen.dart';
 import 'screens/saved_screen.dart';
 import 'screens/search_screen.dart';
+import 'services/search_service.dart';
 
 /// The five bottom tabs from blueprint §5: Home, Search, Saved, Recent, Me.
 class AppShell extends StatefulWidget {
@@ -17,12 +18,21 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _index = 0;
 
-  void _goTo(int index) => setState(() => _index = index);
+  void _goTo(int index) {
+    setState(() => _index = index);
+    if (index != 1) SearchService.focusNode.unfocus();
+  }
+
+  /// The Home search box takes you to Search with the cursor ready.
+  void _openSearch() {
+    _goTo(1);
+    WidgetsBinding.instance.addPostFrameCallback((_) => SearchService.focusNode.requestFocus());
+  }
 
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      HomeScreen(onOpenSearch: () => _goTo(1), onOpenProfile: () => _goTo(4)),
+      HomeScreen(onOpenSearch: _openSearch, onOpenProfile: () => _goTo(4)),
       const SearchScreen(),
       const SavedScreen(),
       const RecentScreen(),
