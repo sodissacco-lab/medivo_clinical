@@ -12,7 +12,10 @@ class OfflineDatabase {
     final folder = await getDatabasesPath();
     final db = await openDatabase(
       p.join(folder, 'medivo_offline.db'),
-      version: 1,
+      version: 2,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) await _createLibraryTables(db);
+      },
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE items (
@@ -49,9 +52,39 @@ class OfflineDatabase {
             selected       INTEGER NOT NULL DEFAULT 0
           )''');
         await db.execute('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT)');
+        await _createLibraryTables(db);
       },
     );
     _db = db;
     return db;
+  }
+
+  /// Version 2 (Phase 12): bookmarks, folders and recently viewed.
+  static Future<void> _createLibraryTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS bookmark_folders (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        deleted    INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      )''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS bookmarks (
+        code       TEXT PRIMARY KEY,
+        title      TEXT NOT NULL,
+        type       TEXT,
+        folder_id  TEXT,
+        deleted    INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS recent_views (
+        code      TEXT PRIMARY KEY,
+        title     TEXT NOT NULL,
+        type      TEXT,
+        viewed_at TEXT NOT NULL
+      )''');
   }
 }

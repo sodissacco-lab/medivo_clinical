@@ -116,9 +116,6 @@ class OfflineItem {
   }
 }
 
-/// Keeps published content on the phone and in step with Medivo cloud.
-/// Only content that has passed clinical review and been published is
-/// ever downloaded.
 /// Columns of ddx_conditions the app reads.
 const String ddxConditionColumns =
     'key, name, category, commonness, must_not_miss, links, required, status, verified_against';
@@ -127,6 +124,9 @@ const String ddxConditionColumns =
 const String interactionColumns = 'id, code, term_a, term_b, severity, summary, mechanism, consequence, '
     'action, monitoring, verified_against, suggested_sources, status, published_at, approved_by_name';
 
+/// Keeps published content on the phone and in step with Medivo cloud.
+/// Only content that has passed clinical review and been published is
+/// ever downloaded.
 class OfflineService extends ChangeNotifier {
   OfflineService._();
 
@@ -287,6 +287,10 @@ class OfflineService extends ChangeNotifier {
       }
 
       await _setMeta(db, 'last_sync', DateTime.now().toUtc().toIso8601String());
+      if (toDownload.isNotEmpty) {
+        await _setMeta(db, 'last_update_notice',
+            jsonEncode({'at': DateTime.now().toUtc().toIso8601String(), 'count': toDownload.length}));
+      }
       await _loadLocal();
     } catch (e) {
       error = friendlyError(e);
@@ -340,6 +344,33 @@ class OfflineService extends ChangeNotifier {
     if (raw == null) return const {};
     final decoded = jsonDecode(raw) as Map<String, dynamic>;
     return decoded.map((k, v) => MapEntry(k, (v as List).cast<String>()));
+  }
+
+  /// The phone's database, for the saved-and-recent library (Phase 12).
+  Database? get database => _db;
+
+  /// When the last update brought new or changed topics, and how many.
+  Future<({DateTime at, int count})?> lastUpdateNotice() async {
+    final db = _db;
+    if (db == null) return null;
+    final raw = await _getMeta(db, 'last_update_notice');
+    if (raw == null) return null;
+    final m = jsonDecode(raw) as Map<String, dynamic>;
+    return (at: DateTime.parse(m['at'] as String).toLocal(), count: (m['count'] as num).toInt());
+  }
+
+  /// Notification ids this person has already seen, kept on the phone.
+  Future<Set<String>> readNotificationIds() async {
+    final db = _db;
+    if (db == null) return {};
+    final raw = await _getMeta(db, 'read_notifications');
+    return raw == null ? {} : (jsonDecode(raw) as List).cast<String>().toSet();
+  }
+
+  Future<void> saveReadNotificationIds(Set<String> ids) async {
+    final db = _db;
+    if (db == null) return;
+    await _setMeta(db, 'read_notifications', jsonEncode(ids.toList()));
   }
 
   /// The published differential diagnosis knowledge base, as JSON.

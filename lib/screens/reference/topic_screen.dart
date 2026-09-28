@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../data/content_options.dart';
 import '../../offline/offline_service.dart';
 import '../../services/account_controller.dart';
+import '../../services/clinical_content_loader.dart';
+import '../../services/library_service.dart';
 import '../../services/reference_repository.dart';
 import '../../theme/medivo_palette.dart';
 import '../../theme/medivo_text.dart';
+import '../../widgets/bookmark_button.dart';
 import '../../widgets/form_message.dart';
 import '../../widgets/markdown_view.dart';
 import '../../widgets/medivo_app_bar.dart';
@@ -32,10 +37,23 @@ class _TopicScreenState extends State<TopicScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ReferenceRepository.topic(widget.code);
+    _future = _load();
   }
 
-  void _retry() => setState(() => _future = ReferenceRepository.topic(widget.code));
+  void _retry() => setState(() => _future = _load());
+
+  /// Status of an unpublished version shown to content staff as a preview.
+  String? _previewStatus;
+
+  /// Published content for everyone; content staff also get a preview of
+  /// the latest draft when nothing is published yet.
+  Future<({OfflineItem? item, TopicSource source})> _load() async {
+    final content = await ClinicalContentLoader.load(widget.code);
+    _previewStatus = content?.previewStatus;
+    final item = content?.item;
+    if (item != null) unawaited(LibraryService.instance.recordView(item.code, item.title, item.type));
+    return (item: content?.item, source: content?.source ?? TopicSource.online);
+  }
 
   void _jumpTo(int index) {
     final context = _sectionKeys[index]?.currentContext;
@@ -53,7 +71,8 @@ class _TopicScreenState extends State<TopicScreen> {
         final item = snapshot.data?.item;
         return Scaffold(
           appBar: medivoAppBar(
-              context, item == null ? 'Topic' : (contentTypes[item.type] ?? 'Topic')),
+              context, item == null ? 'Topic' : (contentTypes[item.type] ?? 'Topic'),
+              actions: [if (item != null) BookmarkButton(code: item.code, title: item.title, type: item.type)]),
           body: SafeArea(child: _body(context, snapshot)),
         );
       },
@@ -86,7 +105,8 @@ class _TopicScreenState extends State<TopicScreen> {
     final item = snapshot.data!.item!;
     final source = snapshot.data!.source;
     final sections = splitSections(item.body)
-        .where((s) => s.title == null || !s.title!.toLowerCase().startsWith('reviewer notes'))
+        .where((s) =>
+            s.title == null || _previewStatus != null || !s.title!.toLowerCase().startsWith('reviewer notes'))
         .toList();
     final namedSections = [
       for (var i = 0; i < sections.length; i++)
@@ -104,6 +124,20 @@ class _TopicScreenState extends State<TopicScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (_previewStatus != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: p.accent.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'STAFF PREVIEW · ${_previewStatus!.replaceAll('_', ' ').toUpperCase()} · '
+                    'Not clinically approved. Hidden from users until published.',
+                    style: MedivoText.bodySm.copyWith(color: p.ink),
+                  ),
+                ),
               Text(item.title, style: MedivoText.title.copyWith(color: p.ink)),
               const SizedBox(height: 6),
               Wrap(
@@ -169,7 +203,7 @@ class _TopicScreenState extends State<TopicScreen> {
                 ContentLinkChips(codes: _linkCodes(item), exclude: item.code),
               ],
               const SizedBox(height: 24),
-              AboutPanel(item: item),
+              if (_previewStatus == null) AboutPanel(item: item),
             ],
           ),
         ),

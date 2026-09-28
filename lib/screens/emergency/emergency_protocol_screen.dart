@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../data/emergency_protocols.dart';
 import '../../services/clinical_content_loader.dart';
+import '../../services/library_service.dart';
 import '../../theme/medivo_palette.dart';
 import '../../theme/medivo_text.dart';
+import '../../widgets/bookmark_button.dart';
 import '../../widgets/elapsed_timer.dart';
 import '../../widgets/form_message.dart';
 import '../../widgets/markdown_view.dart';
@@ -30,7 +34,7 @@ class _EmergencyProtocolScreenState extends State<EmergencyProtocolScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ClinicalContentLoader.load(widget.code);
+    _future = _load();
     // Keep the screen on while a protocol is open (blueprint §16: fast).
     WakelockPlus.enable().catchError((_) {});
   }
@@ -40,6 +44,19 @@ class _EmergencyProtocolScreenState extends State<EmergencyProtocolScreen> {
     WakelockPlus.disable().catchError((_) {});
     super.dispose();
   }
+
+  /// Loads the content and adds it to Recent (blueprint §26).
+  Future<LoadedContent?> _load() async {
+    final content = await ClinicalContentLoader.load(widget.code);
+    if (content != null) {
+      _title = content.item.title;
+      unawaited(LibraryService.instance.recordView(content.item.code, content.item.title, content.item.type));
+      if (mounted) setState(() {});
+    }
+    return content;
+  }
+
+  String? _title;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +68,9 @@ class _EmergencyProtocolScreenState extends State<EmergencyProtocolScreen> {
         backgroundColor: p.alert,
         foregroundColor: onAlert,
         title: Text(title, style: MedivoText.heading.copyWith(color: onAlert)),
+        actions: [
+          BookmarkButton(code: widget.code, title: _title ?? title, type: 'emergency', colour: onAlert),
+        ],
       ),
       body: FutureBuilder<LoadedContent?>(
         future: _future,
@@ -71,7 +91,7 @@ class _EmergencyProtocolScreenState extends State<EmergencyProtocolScreen> {
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
-                  onPressed: () => setState(() => _future = ClinicalContentLoader.load(widget.code)),
+                  onPressed: () => setState(() => _future = _load()),
                   child: const Text('Try again'),
                 ),
               ],

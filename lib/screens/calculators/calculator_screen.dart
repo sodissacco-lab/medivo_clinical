@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../calculators/calc_engine.dart';
 import '../../services/calculator_catalog.dart';
+import '../../services/library_service.dart';
 import '../../theme/medivo_palette.dart';
 import '../../theme/medivo_text.dart';
+import '../../widgets/bookmark_button.dart';
 import '../../widgets/medivo_app_bar.dart';
 import '../../widgets/medivo_panel.dart';
 import '../reference/topic_screen.dart';
@@ -30,6 +32,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void initState() {
     super.initState();
     _reset();
+    LibraryService.instance.recordView(calc.code, calc.title, 'calculator');
   }
 
   @override
@@ -62,7 +65,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final published = CalculatorCatalog.instance.isPublished(calc.code);
 
     return Scaffold(
-      appBar: medivoAppBar(context, calc.title),
+      appBar: medivoAppBar(context, calc.title,
+          actions: [BookmarkButton(code: calc.code, title: calc.title, type: 'calculator')]),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: ListView(

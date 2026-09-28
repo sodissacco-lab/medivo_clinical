@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../calculators/calculator_registry.dart';
 import '../data/emergency_protocols.dart';
 import '../data/guideline_library.dart';
+import '../offline/offline_service.dart';
 import '../services/calculator_catalog.dart';
 import '../theme/medivo_palette.dart';
 import 'algorithms/algorithm_screen.dart';
@@ -53,8 +55,51 @@ List<String> codesIn(String text) {
   ];
 }
 
+/// Titles of topics looked up by code (from the phone, then online).
+class ContentTitles {
+  static final Map<String, String> _titles = {};
+  static final Set<String> _tried = {};
+
+  static String? of(String code) => _titles[code];
+
+  /// Looks up any codes not yet known. Returns true if something new was found.
+  static Future<bool> resolve(Iterable<String> codes) async {
+    final missing = codes.where((c) => !_titles.containsKey(c) && _tried.add(c)).toList();
+    if (missing.isEmpty) return false;
+    var found = false;
+    final offline = OfflineService.instance;
+    if (offline.supported && offline.ready) {
+      for (final code in missing) {
+        final item = await offline.itemByCode(code);
+        if (item != null) {
+          _titles[code] = item.title;
+          found = true;
+        }
+      }
+    }
+    final still = missing.where((c) => !_titles.containsKey(c)).toList();
+    if (still.isEmpty) return found;
+    try {
+      final rows = await Supabase.instance.client
+          .from('content_items')
+          .select('code, title')
+          .inFilter('code', still)
+          .timeout(const Duration(seconds: 10));
+      for (final r in rows) {
+        _titles[r['code'] as String] = r['title'] as String;
+        found = true;
+      }
+    } catch (_) {
+      _tried.removeAll(still); // try again next time
+    }
+    return found;
+  }
+}
+
 /// A friendly name for a code, when the app knows it.
 String labelFor(String code) {
+  final known = ContentTitles.of(code);
+  if (known != null) return known;
   if (code.startsWith('CALC-')) return calculatorByCode(code)?.title ?? code;
   for (final g in guidelineLibrary) {
     if (g.code == code) return g.title;
@@ -64,13 +109,29 @@ String labelFor(String code) {
 
 /// Tappable links to other content, e.g. "Severe malaria" or "GCS".
 /// Calculator codes the app does not have are left out.
-class ContentLinkChips extends StatelessWidget {
+class ContentLinkChips extends StatefulWidget {
   const ContentLinkChips({super.key, required this.codes, this.exclude});
 
   final List<String> codes;
 
   /// Usually the code of the page itself.
   final String? exclude;
+
+  @override
+  State<ContentLinkChips> createState() => _ContentLinkChipsState();
+}
+
+class _ContentLinkChipsState extends State<ContentLinkChips> {
+  @override
+  void initState() {
+    super.initState();
+    ContentTitles.resolve(widget.codes.where((c) => !c.startsWith('CALC-'))).then((found) {
+      if (found && mounted) setState(() {});
+    });
+  }
+
+  List<String> get codes => widget.codes;
+  String? get exclude => widget.exclude;
 
   @override
   Widget build(BuildContext context) {

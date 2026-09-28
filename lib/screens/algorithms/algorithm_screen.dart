@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../data/emergency_protocols.dart';
 import '../../services/clinical_content_loader.dart';
+import '../../services/library_service.dart';
 import '../../theme/medivo_palette.dart';
 import '../../theme/medivo_text.dart';
+import '../../widgets/bookmark_button.dart';
 import '../../widgets/form_message.dart';
 import '../../widgets/markdown_view.dart';
 import '../../widgets/medivo_app_bar.dart';
@@ -29,14 +33,28 @@ class _AlgorithmScreenState extends State<AlgorithmScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ClinicalContentLoader.load(widget.code);
+    _future = _load();
   }
+
+  /// Loads the content and adds it to Recent (blueprint §26).
+  Future<LoadedContent?> _load() async {
+    final content = await ClinicalContentLoader.load(widget.code);
+    if (content != null) {
+      _title = content.item.title;
+      unawaited(LibraryService.instance.recordView(content.item.code, content.item.title, content.item.type));
+      if (mounted) setState(() {});
+    }
+    return content;
+  }
+
+  String? _title;
 
   @override
   Widget build(BuildContext context) {
     final title = widget.fallbackTitle ?? protocolEntry(widget.code)?.title ?? 'Algorithm';
     return Scaffold(
-      appBar: medivoAppBar(context, title),
+      appBar: medivoAppBar(context, title,
+          actions: [BookmarkButton(code: widget.code, title: _title ?? title, type: 'algorithm')]),
       body: FutureBuilder<LoadedContent?>(
         future: _future,
         builder: (context, snapshot) {
@@ -56,7 +74,7 @@ class _AlgorithmScreenState extends State<AlgorithmScreen> {
                 ),
                 const SizedBox(height: 16),
                 FilledButton(
-                  onPressed: () => setState(() => _future = ClinicalContentLoader.load(widget.code)),
+                  onPressed: () => setState(() => _future = _load()),
                   child: const Text('Try again'),
                 ),
               ],

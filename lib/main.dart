@@ -6,6 +6,8 @@ import 'config.dart';
 import 'offline/offline_service.dart';
 import 'services/account_controller.dart';
 import 'services/calculator_catalog.dart';
+import 'services/library_service.dart';
+import 'services/notification_service.dart';
 import 'theme/medivo_theme.dart';
 
 Future<void> main() async {
@@ -30,6 +32,12 @@ Future<void> main() async {
   await OfflineService.instance.init();
   OfflineService.instance.syncIfDue();
   CalculatorCatalog.instance.refresh();
+  try {
+    await LibraryService.instance.start(); // Saved and Recent (Phase 12)
+  } catch (e) {
+    debugPrint('Saved and recent could not start: $e');
+  }
+  NotificationService.instance.refresh();
 
   runApp(const MedivoApp());
 }
